@@ -1,40 +1,7 @@
 import simplejson
 from numpy import genfromtxt
 import csv
-
-class CompanyName():
-
-    def __init__(self, csvRowAsList, headerMap):
-        self.companyName = csvRowAsList[headerMap['Company Name']]
-        self.executiveName = csvRowAsList[headerMap["Executive Name"]]
-
-    def getCompanyName(self):
-        return self.companyName
-
-    def getExecutiveName(self):
-        return self.executiveName
-
-    def companyNameMatches(self):
-        pass
-
-    def __str__(self):
-        return str({ "company_name": self.companyName, "executiveName": self.executiveName })
-
-
-def generateProfilePageUrl(user):
-    return 'https://twitter.com/' + user['screen_name']
-
-class CompanyTwitterAccount():
-    def __init__(self, company, user):
-        self.company = company
-        self.profileUrl = generateProfilePageUrl(user)
-        self.numTweets = user.get('retweet_count', None) # not really sure that this exists
-        self.numFollowers = user['followers_count']
-        self.numFavorites = user['favourites_count']
-
-    def asList(self):
-        return [self.company.getCompanyName(), self.company.getExecutiveName(), self.profileUrl, self.numTweets, self.numFollowers,
-                self.numFavorites]
+from CompanyData import CompanyTwitterAccount, CompanyName
 
 json_file = open("chase_search_results.json", 'r')
 jsonResponse = simplejson.load(json_file)
@@ -82,12 +49,13 @@ with open(csvFileName, 'r') as csvfile:
         if companyTwitterAccount:
             foundCompanies.append(companyTwitterAccount)
 
-
 print
 print "num companies found " + str(len(foundCompanies))
 destinationCsvFileName = 'output.csv'
 print "Writing results to " + destinationCsvFileName
 with open(destinationCsvFileName, 'w') as fp:
     writer = csv.writer(fp, delimiter=',')
+    if len(foundCompanies) > 0:
+        writer.writerows([foundCompanies[0].getHeader()])
     data = [twitterAccount.asList() for twitterAccount in foundCompanies]
     writer.writerows(data)

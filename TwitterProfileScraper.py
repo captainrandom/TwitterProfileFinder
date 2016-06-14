@@ -1,6 +1,74 @@
 from TwitterAPI import TwitterAPI
 import urllib
 import json
+from CompanyData import CompanyTwitterAccount, CompanyName
+
+
+# TODO: Clean up this method
+def queryTwitter(queryStr):
+    # for caching, should just check here for a saved file
+    encodedStr = urllib.quote(queryStr)
+    r = api.request('users/search', {'q': encodedStr})
+    print r.text
+    jsonResponse = json.loads(r.text)
+
+    # cache the results  to a file so that we can use it later.
+    json_file = open("chase_search_results.json", 'w')
+    json.dump(jsonResponse, json_file)
+
+    # print out results
+    print len(jsonResponse)
+    for user in jsonResponse:
+        print json.dumps(user)
+
+    return jsonResponse
+
+import csv
+def saveResultsToCsv(companyTwitterAccountList, destinationCsvFileName='output.csv'):
+    print "num companies found " + str(len(companyTwitterAccountList))
+    print "Writing results to " + destinationCsvFileName
+    with open(destinationCsvFileName, 'w') as fp:
+        writer = csv.writer(fp, delimiter=',')
+        if len(foundCompanies) > 0:
+            writer.writerows([foundCompanies[0].getHeader()])
+        data = [twitterAccount.asList() for twitterAccount in companyTwitterAccountList]
+        writer.writerows(data)
+
+
+from numpy import genfromtxt
+def readInCsvFile(csvFileName):
+    print "Reading in CSV from " + csvFileName
+    with open(csvFileName, 'r') as csvfile:
+        # build header info
+        data = genfromtxt(csvfile, delimiter=',', dtype=None)
+        headerMap = dict(zip(data[0], xrange(0,len(data[0]))))
+
+        for row in data[1:]:
+            # read in data about each company
+            yield CompanyName(row, headerMap)
+
+# There might be a better place for these methods
+
+def matchUserToCompany(company, user):
+    listOfAttributesToCheck = ['screen_name', 'name']
+    for attribute in listOfAttributesToCheck:
+        if matchNameToCompany(company, user[attribute]):
+            return True
+    return False
+
+def matchNameToCompany(company, name):
+    if name.lower() == company.getExecutiveName().lower():
+        return True
+    elif name.lower() == company.getCompanyName().lower():
+        return True
+    else: # need some slightly looser definition of matching
+        return False
+
+def findAndBuildTwitterCompnayAccount(companyName, userList):
+    for user in userList:
+            if matchUserToCompany(companyName, user):
+                return CompanyTwitterAccount(companyName, user)
+
 
 # TODO import this from a file!
 credentials = {
@@ -16,18 +84,15 @@ api = TwitterAPI(credentials['consumer_key'],
                   credentials['access_token_secret'])
 
 
-queryStr = "chase"
-encodedStr = urllib.quote(queryStr)
-r = api.request('users/search', {'q': encodedStr})
-print r.status_code
-print r.response
-print r.text
+foundCompanies = []
+for company in readInCsvFile('test.csv'):
+    companyUsrList = queryTwitter(company.getCompanyName()) # TODO: need to make sure of the format for both
+    ceoUserList = queryTwitter(company.getExecutiveName())
 
-jsonResponse = json.loads(r.text)
+    # need to find a a way to combine these later.
+    companyTwitterAccount = findAndBuildTwitterCompnayAccount(company, companyUsrList)
+    ceoTwitterAccount = findAndBuildTwitterCompnayAccount(company, ceoUserList)
+    if companyTwitterAccount:
+        foundCompanies.append(companyTwitterAccount)
 
-json_file = open("chase_search_results.json", 'w')
-json.dump(jsonResponse, json_file)
-
-print len(jsonResponse)
-for user in jsonResponse:
-    print json.dumps(user)
+saveResultsToCsv(foundCompanies, 'output.csv')
