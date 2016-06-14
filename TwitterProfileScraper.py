@@ -1,25 +1,29 @@
 from TwitterAPI import TwitterAPI
 import urllib
 import json
+import os.path
 from CompanyData import CompanyTwitterAccount, CompanyName
 
 
 # TODO: Clean up this method
 def queryTwitter(queryStr):
-    # for caching, should just check here for a saved file
-    encodedStr = urllib.quote(queryStr)
-    r = api.request('users/search', {'q': encodedStr})
-    print r.text
-    jsonResponse = json.loads(r.text)
+    if os.path.isfile(queryStr + "_search_result.json"):
+        with open(queryStr + "_search_result.json") as jsonFile:
+            jsonResponse = json.load(jsonFile)
+    else:
+        encodedStr = urllib.quote(queryStr)
+        r = api.request('users/search', {'q': encodedStr})
+        print r.text
+        jsonResponse = json.loads(r.text)
 
-    # cache the results  to a file so that we can use it later.
-    json_file = open("chase_search_results.json", 'w')
-    json.dump(jsonResponse, json_file)
+        # cache the results  to a file so that we can use it later.
+        with open("chase_search_results.json", 'w') as json_file:
+            json.dump(jsonResponse, json_file)
 
-    # print out results
-    print len(jsonResponse)
-    for user in jsonResponse:
-        print json.dumps(user)
+        # print out results
+        print len(jsonResponse)
+        for user in jsonResponse:
+            print json.dumps(user)
 
     return jsonResponse
 
